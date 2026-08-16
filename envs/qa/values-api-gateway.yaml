@@ -1,17 +1,13 @@
 replicaCount: 1
-
 fullnameOverride: api-gateway
-
 image:
   repository: 304312474711.dkr.ecr.us-east-1.amazonaws.com/api-gateway
-  tag: sha-ef1ccc7
+  tag: sha-ffb9d07
   pullPolicy: Always
-
 service:
   type: ClusterIP
   port: 8080
   targetPort: 8080
-
 ingress:
   enabled: true
   className: alb
@@ -21,7 +17,6 @@ ingress:
   host: a0ffda4d239d941549d518de18c19f6f-cf2f70374c2e5a74.elb.us-east-1.amazonaws.com
   path: /api
   pathType: Prefix
-
 resources:
   requests:
     cpu: 100m
@@ -29,13 +24,11 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
-
 autoscaling:
   enabled: false
   minReplicas: 2
   maxReplicas: 3
   targetCPUUtilizationPercentage: 70
-
 livenessProbe:
   path: /actuator/health
   port: 8080
@@ -44,7 +37,6 @@ livenessProbe:
   timeoutSeconds: 5
   failureThreshold: 3
   successThreshold: 1
-
 readinessProbe:
   path: /actuator/health/readiness
   port: 8080
@@ -53,7 +45,6 @@ readinessProbe:
   timeoutSeconds: 5
   failureThreshold: 3
   successThreshold: 1
-
 configmap:
   SPRING_PROFILES_ACTIVE: qa
   LOG_LEVEL: DEBUG
@@ -62,23 +53,18 @@ configmap:
   AUTH_SERVICE_URL: "http://auth-service:8081"
   DRUG_CATALOG_URL: "http://drug-catalog-service:8082"
   NOTIFICATION_URL: "http://notification-service:3000"
-
   MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
-
 envFrom:
   - secretRef:
       name: db-credentials
   - secretRef:
       name: jwt-secret
-
 volumeMounts:
   - name: tmp
     mountPath: /tmp
-
 volumes:
   - name: tmp
     emptyDir: {}
-
 serviceAccount:
   create: true
   annotations:
