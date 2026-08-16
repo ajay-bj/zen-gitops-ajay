@@ -4,7 +4,7 @@ replicaCount: 1
 fullnameOverride: drug-catalog-service
 image:
   repository: 304312474711.dkr.ecr.us-east-1.amazonaws.com/drug-catalog-service
-  tag: sha-0184ded
+  tag: sha-ffb9d07
   pullPolicy: Always
 service:
   type: ClusterIP
