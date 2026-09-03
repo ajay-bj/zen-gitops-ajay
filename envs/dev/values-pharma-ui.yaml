@@ -10,10 +10,8 @@ service:
   targetPort: 80
 ingress:
   enabled: true
-  className: alb
-  annotations:
-    alb.ingress.kubernetes.io/group.name: pharma-dev
-    alb.ingress.kubernetes.io/group.order: "20"
+  className: nginx
+  annotations: {}
   host: ""
   path: /
   pathType: Prefix
