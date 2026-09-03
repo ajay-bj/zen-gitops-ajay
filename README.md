@@ -1,4 +1,5 @@
 # zen-gitops
+# zen-gitops
 
 GitOps configuration repository for the Zen Pharma platform.
 ArgoCD watches this repo and syncs all changes to the EKS cluster automatically.
@@ -14,6 +15,44 @@ ArgoCD watches this repo and syncs all changes to the EKS cluster automatically.
 > - [`zen-pharma-frontend-ajay`](https://github.com/ajay-bj/zen-pharma-frontend-ajay) — React frontend
 
 > **Note:** all `repoURL` fields inside `argocd/` already point at `ajay-bj/zen-gitops-ajay`.
+
+---
+
+## Accessing the ArgoCD UI
+
+ArgoCD is installed but **not exposed publicly** — `argocd-server` is a ClusterIP service and no
+ArgoCD ingress is applied (this is the secure default for dev). Access it locally via port-forward:
+
+```bash
+# 1. Point kubectl at the cluster
+aws eks update-kubeconfig --region us-east-1 --name pharma-dev-cluster
+
+# 2. Port-forward the ArgoCD server
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+
+# 3. Open the UI (accept the self-signed cert warning)
+#    https://localhost:8080
+```
+
+**Login:**
+- Username: `admin`
+- Password — read it from the cluster (do not commit the value to Git):
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d ; echo
+```
+
+> The initial admin password lives only in the `argocd-initial-admin-secret` on the cluster.
+> Retrieve it with the command above whenever you need it. Change it in the UI
+> (User Info → Update Password) for anything beyond throwaway dev.
+
+**Application entry point (NGINX Ingress NLB):**
+the app itself is reached through the NGINX Ingress Controller's AWS NLB hostname:
+```bash
+kubectl get svc ingress-nginx-controller -n ingress-nginx \
+  -o jsonpath="{.status.loadBalancer.ingress[0].hostname}" ; echo
+```
 
 ---
 
