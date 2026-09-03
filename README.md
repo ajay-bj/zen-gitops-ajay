@@ -1,26 +1,35 @@
 # zen-gitops
 
-> **Interview questions** have been consolidated → see [zen-interview-prep](../zen-interview-prep/README.md)
-
 GitOps configuration repository for the Zen Pharma platform.
 ArgoCD watches this repo and syncs all changes to the EKS cluster automatically.
 
-> **Companion repos:**
-> - [`zen-infra`](https://github.com/your-github-username/zen-infra) — Terraform for AWS infrastructure (EKS, RDS, ECR, IAM)
-> - [`zen-pharma-backend`](https://github.com/your-github-username/zen-pharma-backend) — Spring Boot microservices
-> - [`zen-pharma-frontend`](https://github.com/your-github-username/zen-pharma-frontend) — React frontend
+> **This fork (`ajay-bj`) — current status (2026-09-03):** all 9 dev ArgoCD Applications are
+> `Synced`, and all application pods are `Running`. Image tags point at ECR account
+> `304312474711`; `DB_HOST` points at RDS `pharma-dev-postgres.c2vs4a4kqea5.us-east-1.rds.amazonaws.com`.
+> The personalisation described below has already been applied to this fork.
 
-> **Note:** Replace `your-github-username` in all `repoURL` fields inside `argocd/` with your actual GitHub username after forking.
+> **Companion forks:**
+> - [`zen-infra-ajay`](https://github.com/ajay-bj/zen-infra-ajay) — Terraform for AWS infrastructure (EKS, RDS, ECR, IAM)
+> - [`zen-pharma-backend-ajay`](https://github.com/ajay-bj/zen-pharma-backend-ajay) — Spring Boot microservices
+> - [`zen-pharma-frontend-ajay`](https://github.com/ajay-bj/zen-pharma-frontend-ajay) — React frontend
+
+> **Note:** all `repoURL` fields inside `argocd/` already point at `ajay-bj/zen-gitops-ajay`.
 
 ---
 
-## After Forking — Required Personalisation
+## After Forking — Required Personalisation (already applied to this fork)
 
-Before ArgoCD can sync anything, you must replace two AWS-specific values that are hardcoded to the instructor's account throughout `envs/dev/*.yaml`.
+Before ArgoCD can sync anything, two AWS-specific values that ship hardcoded to the instructor's
+account must be replaced throughout `envs/dev/*.yaml`. For this fork they are already set to:
+- **AWS Account ID:** `304312474711`
+- **RDS instance identifier:** `c2vs4a4kqea5`
+
+The steps below document how it was done, in case you re-fork from upstream.
 
 ### 1. AWS Account ID
 
-Every `image.repository` field and the IAM role ARN in `values-api-gateway.yaml` contain the instructor's account ID (`516209541629`). Replace it with your own.
+Every `image.repository` field and the IAM role ARN in `values-api-gateway.yaml` ship with the
+instructor's account ID (`516209541629`). Replace it with your own.
 
 Find your account ID:
 ```bash
@@ -33,34 +42,36 @@ Do the replacement (run from repo root):
 find envs/ -name "*.yaml" -exec sed -i '' 's/516209541629/YOUR_ACCOUNT_ID/g' {} +
 ```
 
-After this, every `image.repository` will point to your ECR registry, e.g.:
+After this, every `image.repository` points to your ECR registry, e.g.:
 ```yaml
 image:
-  repository: 123456789012.dkr.ecr.us-east-1.amazonaws.com/auth-service
+  repository: 304312474711.dkr.ecr.us-east-1.amazonaws.com/auth-service
 ```
 
 ### 2. RDS Endpoint
 
-Every `DB_HOST` env var contains the instructor's RDS instance identifier (`cyrywaguk6v4`). Replace it with your own RDS instance identifier (the subdomain prefix in the endpoint shown in AWS Console → RDS → your instance).
+Every `DB_HOST` env var ships with the instructor's RDS instance identifier. Replace it with
+your own (the subdomain prefix in the endpoint shown in AWS Console → RDS → your instance).
 
 ```bash
-# Replace YOUR_RDS_ID with your RDS instance identifier (e.g. abcd1234efgh)
+# Replace YOUR_RDS_ID with your RDS instance identifier (this fork: c2vs4a4kqea5)
 find envs/ -name "*.yaml" -exec sed -i '' 's/cyrywaguk6v4/YOUR_RDS_ID/g' {} +
 ```
 
-After this, `DB_HOST` will look like:
+After this, `DB_HOST` looks like:
 ```yaml
-DB_HOST: pharma-dev-postgres.abcd1234efgh.us-east-1.rds.amazonaws.com
+DB_HOST: pharma-dev-postgres.c2vs4a4kqea5.us-east-1.rds.amazonaws.com
 ```
 
 ### 3. Verify
 
 ```bash
-# Should show only YOUR account ID and RDS ID — no instructor values
+# Should show no instructor values
 grep -r "516209541629\|cyrywaguk6v4" envs/
 ```
 
-Commit and push these changes. CI will then update image tags to your ECR images on every backend build, and ArgoCD syncs will no longer fail with `ImagePullBackOff`.
+Commit and push these changes. CI then updates image tags to your ECR images on every backend
+build, and ArgoCD syncs the dev namespace. On this fork all 9 dev pods are `Running`.
 
 ---
 
@@ -68,10 +79,10 @@ Commit and push these changes. CI will then update image tags to your ECR images
 
 | Folder | Purpose |
 |--------|---------|
-| `helm-charts/` | Shared Helm chart used by all 8 services |
-| `envs/` | Per-environment Helm values files (dev / qa / prod) |
+| `helm-charts/` | Shared Helm chart used by all services |
+| `envs/` | Per-environment Helm values files (dev = 9 services, qa/prod = 8) |
 | `argocd/` | ArgoCD AppProject + per-service Application manifests |
-| `k8s/` | Cluster-level configs — namespaces, RBAC, External Secrets, ingress values |
+| `external-secrets/` | ClusterSecretStore + ExternalSecrets (db-credentials, jwt-secret) per env |
 | `db-init/` | PostgreSQL schema initialisation scripts |
 
 ---
@@ -80,7 +91,7 @@ Commit and push these changes. CI will then update image tags to your ECR images
 
 ```
 zen-gitops/
-├── helm-charts/                        # Shared Helm chart (one chart, all 8 services)
+├── helm-charts/                        # Shared Helm chart (one chart, all services)
 │   ├── Chart.yaml
 │   ├── values.yaml                     # Default values (overridden per service)
 │   └── templates/
@@ -93,7 +104,7 @@ zen-gitops/
 │       └── _helpers.tpl
 │
 ├── envs/                               # Per-environment Helm values
-│   ├── dev/
+│   ├── dev/                            # 9 services (includes qc-service)
 │   │   ├── values-api-gateway.yaml
 │   │   ├── values-auth-service.yaml
 │   │   ├── values-catalog-service.yaml
@@ -101,9 +112,10 @@ zen-gitops/
 │   │   ├── values-manufacturing-service.yaml
 │   │   ├── values-notification-service.yaml
 │   │   ├── values-pharma-ui.yaml
+│   │   ├── values-qc-service.yaml
 │   │   └── values-supplier-service.yaml
-│   ├── qa/                             # Same 8 files, QA-specific values
-│   └── prod/                           # Same 8 files, prod-specific values + podAntiAffinity
+│   ├── qa/                             # 8 services, QA-specific values
+│   └── prod/                           # 8 services, prod-specific values + podAntiAffinity
 │
 ├── argocd/
 │   ├── install/
@@ -112,7 +124,7 @@ zen-gitops/
 │   ├── projects/
 │   │   └── pharma-project.yaml         # ArgoCD AppProject (scopes allowed repos/namespaces)
 │   └── apps/
-│       ├── dev/                        # Individual Application per service (8 apps)
+│       ├── dev/                        # Individual Application per service (9 apps)
 │       │   ├── api-gateway-app.yaml
 │       │   ├── auth-service-app.yaml
 │       │   ├── catalog-service-app.yaml
@@ -120,18 +132,18 @@ zen-gitops/
 │       │   ├── manufacturing-service-app.yaml
 │       │   ├── notification-service-app.yaml
 │       │   ├── pharma-ui-app.yaml
+│       │   ├── qc-service-app.yaml
 │       │   └── supplier-service-app.yaml
 │       ├── qa/
 │       │   └── pharma-qa-app.yaml      # Single app-of-apps pointing to envs/qa/
 │       └── prod/
 │           └── pharma-prod-app.yaml    # Single app-of-apps pointing to envs/prod/
 │
-├── k8s/                                # Cluster-level Kubernetes configs
-│   ├── namespaces.yaml
-│   ├── rbac/                           # Role and RoleBinding per environment
-│   ├── external-secrets/               # ClusterSecretStore + ExternalSecrets per env
-│   ├── ingress/                        # NGINX Ingress Helm values
-│   └── monitoring/                     # Prometheus Helm values
+├── external-secrets/                   # External Secrets Operator manifests
+│   └── dev/
+│       ├── cluster-secret-store.yaml   # ClusterSecretStore → AWS Secrets Manager (IRSA)
+│       ├── db-credentials.yaml         # ExternalSecret → /pharma/dev/db-credentials
+│       └── jwt-secret.yaml             # ExternalSecret → /pharma/dev/jwt-secret
 │
 └── db-init/
     └── 01-schemas.sql                  # Creates schemas: pharmacy, inventory, procurement, manufacturing
@@ -141,7 +153,7 @@ zen-gitops/
 
 ## How Helm Works Here
 
-One chart (`helm-charts/`) is shared across all 8 services.
+One chart (`helm-charts/`) is shared across all services.
 Each service gets its own values file that overrides the defaults:
 
 ```
@@ -155,8 +167,7 @@ Final Kubernetes manifests for auth-service in the dev namespace
 ArgoCD Application for a service:
 ```yaml
 source:
-  # Replace 'your-github-username' with your GitHub username
-  repoURL: https://github.com/your-github-username/zen-gitops.git
+  repoURL: https://github.com/ajay-bj/zen-gitops-ajay.git
   path: helm-charts
   helm:
     valueFiles:
@@ -208,5 +219,5 @@ git push
 
 ## Full Setup Guide
 
-See `zen-infra/docs/FULL-DEPLOYMENT-GUIDE.md` in the `zen-infra` repository for the complete
-step-by-step guide covering all 4 stages: infra → prerequisites → CI → ArgoCD CD.
+See [`zen-infra-ajay/docs/FULL-DEPLOYMENT-GUIDE.md`](https://github.com/ajay-bj/zen-infra-ajay/blob/main/docs/FULL-DEPLOYMENT-GUIDE.md)
+for the complete step-by-step guide covering all 4 stages: infra → prerequisites → CI → ArgoCD CD.
