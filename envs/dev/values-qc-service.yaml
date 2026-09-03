@@ -2,7 +2,7 @@ replicaCount: 1
 fullnameOverride: qc-service
 image:
   repository: 304312474711.dkr.ecr.us-east-1.amazonaws.com/qc-service
-  tag: sha-broken999
+  tag: sha-3ceb27b
   pullPolicy: Always
 service:
   type: ClusterIP
@@ -48,11 +48,11 @@ configmap:
   SERVER_PORT: "8086"
   MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
 volumeMounts:
-  - name: tmp
-    mountPath: /tmp
+- name: tmp
+  mountPath: /tmp
 volumes:
-  - name: tmp
-    emptyDir: {}
+- name: tmp
+  emptyDir: {}
 serviceAccount:
   create: true
   annotations: {}
