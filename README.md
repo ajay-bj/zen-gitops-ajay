@@ -260,3 +260,51 @@ git push
 
 See [`zen-infra-ajay/docs/FULL-DEPLOYMENT-GUIDE.md`](https://github.com/ajay-bj/zen-infra-ajay/blob/main/docs/FULL-DEPLOYMENT-GUIDE.md)
 for the complete step-by-step guide covering all 4 stages: infra → prerequisites → CI → ArgoCD CD.
+
+---
+
+## Required Steps — DEV-only (quick reference for the ajay-bj fork)
+
+> Scope: **DEV only. Do NOT deploy qa/prod.** Assumes Stage 1 (infra) and Stage 2 (ArgoCD/ESO/NGINX
+> installed) are done — see `zen-infra-ajay`.
+
+**1. Personalize `envs/dev/*.yaml` (already applied; re-verify after any upstream re-fork)**
+- AWS account ID → `304312474711` in every `image.repository` and the IAM role ARN.
+- `DB_HOST` → the CURRENT RDS endpoint. **This changes on every infra rebuild** — set it to
+  `pharma-dev-postgres.<NEW_ID>.us-east-1.rds.amazonaws.com` across all `envs/dev/values-*.yaml`.
+- All `argocd/apps/dev/*.yaml` `repoURL` → `https://github.com/ajay-bj/zen-gitops-ajay.git`.
+- `pharma-ui-app.yaml` uses `../envs/dev/values-pharma-ui.yaml` (typo fixed).
+
+**2. Ingress must be `nginx`, not `alb` (critical)**
+This cluster runs the **NGINX** Ingress Controller, not the AWS Load Balancer Controller. In
+`envs/dev/values-api-gateway.yaml` and `envs/dev/values-pharma-ui.yaml` the ingress must be:
+```yaml
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+```
+If left as `className: alb`, those two Ingresses never get a load-balancer ADDRESS and ArgoCD reports
+the apps as **Progressing** forever (pods still run, but health never goes green). This is already fixed.
+
+**3. How deploys happen**
+App CI (backend/frontend) commits new `image.tag` values here → ArgoCD auto-syncs the `dev` namespace.
+9 dev apps: api-gateway, auth-service, catalog-service, inventory-service, manufacturing-service,
+notification-service, pharma-ui, qc-service, supplier-service.
+
+**4. Verify**
+```bash
+kubectl get applications -n argocd     # all 9 Synced + Healthy
+kubectl get pods -n dev                # all 9 Running
+kubectl get ingress -n dev             # api-gateway + pharma-ui: CLASS=nginx, ADDRESS=<NLB>
+```
+
+**5. Access the ArgoCD UI** (see the "Accessing the ArgoCD UI" section above)
+Port-forward `svc/argocd-server -n argocd 8080:443`, open **https**://localhost:8080, login `admin`.
+Retrieve the password from the cluster (never commit it):
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+```
+
+> **QA/PROD are off:** the app CI `open-qa-pr` jobs are disabled, so no QA promotion PRs are created.
+> Keep it that way; deploy dev only.
